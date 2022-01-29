@@ -19,9 +19,9 @@ class PositionalEncoding(nn.Module):
         return x + self.pe[:x.size(0), :]
 
 
-class TransMotion(nn.Module):
+class Transformer(nn.Module):
     def __init__(self, interval, d_input=63, feature_size=64, num_layers=2, dropout=0.1, nhead=4):
-        super(TransMotion, self).__init__()
+        super(Transformer, self).__init__()
         self.model_type = 'Transformer'
 
         self.interval = interval
