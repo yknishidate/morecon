@@ -1,7 +1,6 @@
 import numpy as np
 import copy
-
-from interpolation import linear_interpolate
+import interpolation as ip
 
 
 def stay_at_origin(data):
@@ -11,60 +10,20 @@ def stay_at_origin(data):
     return data - lerp_pos, lerp_pos
 
 
-def invert_data(data, axis):
-    cpy = copy.deepcopy(data)
-    cpy[:, :, axis] = -cpy[:, :, axis]
-    cpy[:, 5:9], cpy[:, 9:13] = cpy[:, 9:13].copy(), cpy[:, 5:9].copy()
-    cpy[:, 13:17], cpy[:, 17:21] = cpy[:, 17:21].copy(), cpy[:, 13:17].copy()
-    return cpy
-
-
-def invert_time(data):
-    return data[::-1]
-
-
 def bbox_fit(data_3d, interval):
     fitted_3d = copy.deepcopy(data_3d)
     exist_frames = list(range(0, len(data_3d), interval))
-    min_x = np.min(data_3d[exist_frames, :, 0])
-    max_x = np.max(data_3d[exist_frames, :, 0])
-    min_y = np.min(data_3d[exist_frames, :, 1])
-    max_y = np.max(data_3d[exist_frames, :, 1])
-    min_z = np.min(data_3d[exist_frames, :, 2])
-    max_z = np.max(data_3d[exist_frames, :, 2])
-
-    fitted_3d[:, :, 0] = (data_3d[:, :, 0] - min_x) / (max_x - min_x) * 2.0 - 1.0
-    fitted_3d[:, :, 1] = (data_3d[:, :, 1] - min_y) / (max_y - min_y) * 2.0 - 1.0
-    fitted_3d[:, :, 2] = (data_3d[:, :, 2] - min_z) / (max_z - min_z) * 2.0 - 1.0
-    return fitted_3d, [min_x, max_x, min_y, max_y, min_z, max_z]
+    mins = np.min(data_3d[exist_frames])
+    maxs = np.max(data_3d[exist_frames])
+    fitted_3d = (data_3d - mins) / (maxs - mins) * 2.0 - 1.0
+    return fitted_3d, [mins, maxs]
 
 
 def bbox_unfit(data_3d, min_max_values):
     unfitted_3d = copy.deepcopy(data_3d)
-    min_x, max_x, min_y, max_y, min_z, max_z = min_max_values
-    unfitted_3d[:, :, 0] = (data_3d[:, :, 0] + 1.0) / 2.0 * (max_x - min_x) + min_x
-    unfitted_3d[:, :, 1] = (data_3d[:, :, 1] + 1.0) / 2.0 * (max_y - min_y) + min_y
-    unfitted_3d[:, :, 2] = (data_3d[:, :, 2] + 1.0) / 2.0 * (max_z - min_z) + min_z
+    mins, maxs = min_max_values
+    unfitted_3d = (data_3d + 1.0) / 2.0 * (maxs - mins) + mins
     return unfitted_3d
-
-
-def fit(data, interval=None):
-    if interval is None:
-        minval = np.min(data, axis=0)
-        maxval = np.max(data, axis=0)
-    else:
-        exist_frames = list(range(0, len(data), interval))
-        minval = np.min(data[exist_frames], axis=0)
-        maxval = np.max(data[exist_frames], axis=0)
-
-    midval = (minval + maxval) / 2.0
-    scale = maxval - minval
-    np.place(scale, scale < 1.0, 1.0)
-    return (data - midval) / scale * 2.0, midval, scale
-
-
-def unfit(data, midval, scale):
-    return data / 2.0 * scale + midval
 
 
 def calc_loss(output, target):
@@ -96,36 +55,28 @@ def resample(data, rate):
     return np.array(new_data)
 
 
-def absolute_to_relative(data):
-    parents = [
-        None,
-        0, 1, 2, 3,
-        2, 5, 6, 7,
-        2, 9, 10, 11,
-        0, 13, 14, 15,
-        0, 17, 18, 19
-    ]
+PARENTS = [
+    None,
+    0, 1, 2, 3,
+    2, 5, 6, 7,
+    2, 9, 10, 11,
+    0, 13, 14, 15,
+    0, 17, 18, 19
+]
 
+
+def absolute_to_relative(data):
     relative_data = copy.deepcopy(data)
     for marker in range(1, 21):
-        parent = parents[marker]
+        parent = PARENTS[marker]
         relative_data[:, marker] -= data[:, parent]
     return relative_data
 
 
 def relative_to_absolute(data):
-    parents = [
-        None,
-        0, 1, 2, 3,
-        2, 5, 6, 7,
-        2, 9, 10, 11,
-        0, 13, 14, 15,
-        0, 17, 18, 19
-    ]
-
     absolute_data = copy.deepcopy(data)
     for marker in range(1, 21):
-        parent = parents[marker]
+        parent = PARENTS[marker]
         absolute_data[:, marker] += absolute_data[:, parent]
     return absolute_data
 
@@ -141,7 +92,7 @@ def relative_to_length(data):
 def align_bone_length(data, interval):
     relative_data = absolute_to_relative(data)
     length_data = relative_to_length(relative_data)
-    lerp_length_data = linear_interpolate(length_data, interval)
+    lerp_length_data = ip.linear_interpolate(length_data, interval)
     dir_data = np.zeros(relative_data.shape)
     dir_data[:, 1:] = relative_data[:, 1:] / length_data[:, 1:]
     for marker in range(1, 21):

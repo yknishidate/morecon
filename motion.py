@@ -29,7 +29,7 @@ def reshape_to_2d(motion_3d):
 
 
 class Motion:
-    def __init__(self, csv_data, name) -> None:
+    def __init__(self, csv_data, name):
         self.name = name
         self.data = reshape_to_3d(extract_motion(csv_data, name))
 
