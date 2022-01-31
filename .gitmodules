@@ -1,0 +1,3 @@
+[submodule "dsc2021_data"]
+	path = dsc2021_data
+	url = https://github.com/BandaiNamcoResearchInc/dsc2021_data
